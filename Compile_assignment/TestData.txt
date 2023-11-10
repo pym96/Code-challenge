@@ -1,0 +1,5 @@
+int num1, num2, num3;
+float num_f = 1234;
+int num_3= num1 + num2;
+if num1 == num2:
+    num1 = num2 + 1;
