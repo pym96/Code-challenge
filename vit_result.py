@@ -6,36 +6,27 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+import timm
 
-# 定义简单的卷积神经网络
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+class CustomViT(nn.Module):
+    def __init__(self, num_classes):
+        super(CustomViT, self).__init__()
+        self.vit = timm.create_model('vit_base_patch16_224', pretrained=True)
+        self.vit.head = nn.Linear(self.vit.head.in_features, num_classes)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        return self.vit(x)
 
-# 数据预处理
+# 数据预处理 - 包括调整图像大小
 transform = transforms.Compose([
+    transforms.Resize(224),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
 def main():
     # 初始化 TensorBoard
-    writer = SummaryWriter("runs/cifar10_conv_experiment")
+    writer = SummaryWriter("runs/cifar10_vit_experiment")
 
     # 设置训练设备
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,10 +41,12 @@ def main():
     testloader = torch.utils.data.DataLoader(testset, batch_size=6,
                                              shuffle=True, num_workers=2)
 
+    # Define the Vision Transformer model
+    net = timm.create_model('vit_small_patch16_224', pretrained=False, num_classes=10)
+    net = net.to(device)
     # 初始化网络、损失函数和优化器
-    net = Net().to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(net.parameters(), lr=0.0001, momentum=0.9)
 
     # 将模型结构添加到 TensorBoard
     dataiter = iter(trainloader)
@@ -61,7 +54,7 @@ def main():
     writer.add_graph(net, images.to(device))
 
     # 训练网络
-    for epoch in range(2):
+    for epoch in range(200):
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data[0].to(device), data[1].to(device)
