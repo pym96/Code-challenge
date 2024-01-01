@@ -8,6 +8,45 @@ from torch.utils.tensorboard import SummaryWriter
 
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
+
+
+import torchvision.transforms.functional as TF
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def show_images_with_labels(images, true_labels, pred_labels):
+    """
+    Show images with true and predicted labels using matplotlib.
+
+    Args:
+        images (tensor): Batch of images.
+        true_labels (tensor): Actual labels of the batch.
+        pred_labels (tensor): Predicted labels of the batch.
+    """
+    # Unnormalize the images
+    images = images / 2 + 0.5
+
+    # Convert tensor to numpy for plotting
+    images = images.numpy()
+
+    # Number of images to display
+    num_images = len(images)
+
+    # Set up the plot
+    fig, axes = plt.subplots(1, num_images, figsize=(num_images * 3, 3))
+
+    # Plot each image
+    for i in range(num_images):
+        ax = axes[i] if num_images > 1 else axes
+        img = np.transpose(images[i], (1, 2, 0))  # Convert from (C, H, W) to (H, W, C)
+        ax.imshow(img)
+        ax.axis('off')
+        ax.set_title(f'True: {true_labels[i]}\nPred: {pred_labels[i]}')
+
+    plt.show()
+
 
 # 定义简单的卷积神经网络
 class Net(nn.Module):
@@ -85,7 +124,7 @@ def main():
     running_loss = 0.0
     n_total_steps = len(trainloader)
     # 训练网络并记录到 TensorBoard
-    for epoch in range(100):  
+    for epoch in range(2):  
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
@@ -118,9 +157,12 @@ def main():
         n_samples = 0
         for images, labels in testloader:
             labels = labels.to(device)
+            images = images.to(device)
             outputs = net(images)
             # max returns (value ,index)
-            values, predicted = torch.max(outputs.data, 1)
+            _, predicted = torch.max(outputs.data, 1)
+            show_images_with_labels(images.cpu(), labels.cpu(), predicted.cpu())
+            # 添加测试图像及其标签到 TensorBoard
             n_samples += labels.size(0)
             n_correct += (predicted == labels).sum().item()
 
